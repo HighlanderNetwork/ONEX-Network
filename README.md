@@ -10,8 +10,8 @@ Proof-of-Stake Token on Ethereum Classic Network. This is an alternative method 
 * **Decimals**: 18
 * **Standard**: ERC20 & PoSTokenStandard
 * **Platform**: Ethereum Classic
-* **Maximum Total Supply**: 10,000,000 POS
-* **Initial Supply**: 1,000,000 POS
+* **Maximum Total Supply**: 10,000,000 ONEX
+* **Initial Supply**: 1,000,000 ONEX
 * **Distribution**: Free Airdrop
 * **Minimum Coin Age**: 3 Days
 * **Maximum Coin Age**: 90 Days
