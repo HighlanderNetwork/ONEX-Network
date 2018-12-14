@@ -71,30 +71,21 @@ contract Ownable {
 }
 
 
-/**
- * @title ERC20Basic
- * @dev Simpler version of ERC20 interface
- * @dev see https://github.com/ethereum/EIPs/issues/179
- */
-contract ERC20Basic {
-    uint256 public totalSupply;
-    function balanceOf(address who) public view returns (uint256);
-    function transfer(address to, uint256 value) public returns (bool);
-    event Transfer(address indexed from, address indexed to, uint256 value);
+contract ERC223 {
+  function transfer(address to, uint value, bytes data) {
+        uint codeLength;
+        assembly {
+            codeLength := extcodesize(_to)
+        }
+        balances[msg.sender] = balances[msg.sender].sub(_value);
+        balances[_to] = balances[_to].add(_value);
+        if(codeLength>0) {
+            // Require proper transaction handling.
+            ERC223Receiver receiver = ERC223Receiver(_to);
+            receiver.tokenFallback(msg.sender, _value, _data);
+        }
+    }
 }
-
-
-/**
- * @title ERC20 interface
- * @dev see https://github.com/ethereum/EIPs/issues/20
- */
-contract ERC20 is ERC20Basic {
-    function allowance(address owner, address spender) public view returns (uint256);
-    function transferFrom(address from, address to, uint256 value) public returns (bool);
-    function approve(address spender, uint256 value) public returns (bool);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-}
-
 
 /**
  * @title PoSTokenStandard
@@ -113,7 +104,7 @@ contract PoSTokenStandard {
 interface tokenRecipient { function receiveApproval(address _from, uint256 _value, address _token, bytes _extraData) external; }
 
 
-contract ONEX is ERC20,PoSTokenStandard,Ownable {
+contract ONEX is ERC223,PoSTokenStandard,Ownable {
     using SafeMath for uint256;
 
     string public name = "ONEX Network";
