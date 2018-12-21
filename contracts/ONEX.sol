@@ -1,4 +1,4 @@
-pragma solidity 0.4.25;
+pragma solidity 0.4.19;
 
 
 /**
@@ -31,70 +31,24 @@ library SafeMath {
     }
 }
 
+contract ERC223 {
+  uint public totalSupply;
+  function balanceOf(address who) constant returns (uint);
 
-/**
- * @title Ownable
- * @dev The Ownable contract has an owner address, and provides basic authorization control
- * functions, this simplifies the implementation of "user permissions".
- */
-contract Ownable {
-    address public owner;
+  function name() constant returns (string _name);
+  function symbol() constant returns (string _symbol);
+  function decimals() constant returns (uint8 _decimals);
+  function totalSupply() constant returns (uint256 _supply);
 
-
-    /**
-     * @dev The Ownable constructor sets the original `owner` of the contract to the sender
-     * account.
-     */
-    constructor () public {
-        owner = msg.sender;
-    }
-
-
-    /**
-     * @dev Throws if called by any account other than the owner.
-     */
-    modifier onlyOwner() {
-        require(msg.sender == owner);
-        _;
-    }
-
-
-    /**
-     * @dev Allows the current owner to transfer control of the contract to a newOwner.
-     * @param newOwner The address to transfer ownership to.
-     */
-    function transferOwnership(address newOwner) public onlyOwner {
-        require(newOwner != address(0));
-        owner = newOwner;
-    }
-
+  function transfer(address to, uint value) returns (bool ok);
+  function transfer(address to, uint value, bytes data) returns (bool ok);
+  event Transfer(address indexed _from, address indexed _to, uint256 _value);
+  event ERC223Transfer(address indexed _from, address indexed _to, uint256 _value, bytes _data);
 }
 
-
-/**
- * @title ERC20Basic
- * @dev Simpler version of ERC20 interface
- * @dev see https://github.com/ethereum/EIPs/issues/179
- */
-contract ERC20Basic {
-    uint256 public totalSupply;
-    function balanceOf(address who) public view returns (uint256);
-    function transfer(address to, uint256 value) public returns (bool);
-    event Transfer(address indexed from, address indexed to, uint256 value);
+contract ContractReceiver {
+  function tokenFallback(address _from, uint _value, bytes _data);
 }
-
-
-/**
- * @title ERC20 interface
- * @dev see https://github.com/ethereum/EIPs/issues/20
- */
-contract ERC20 is ERC20Basic {
-    function allowance(address owner, address spender) public view returns (uint256);
-    function transferFrom(address from, address to, uint256 value) public returns (bool);
-    function approve(address spender, uint256 value) public returns (bool);
-    event Approval(address indexed owner, address indexed spender, uint256 value);
-}
-
 
 /**
  * @title PoSTokenStandard
@@ -105,20 +59,18 @@ contract PoSTokenStandard {
     uint256 public stakeMinAge;
     uint256 public stakeMaxAge;
     function mint() public returns (bool);
-    function coinAge() public view returns (uint256);
+    function coinAge(address staker) public view returns (uint256);
     function annualInterest() public view returns (uint256);
     event Mint(address indexed _address, uint _reward);
 }
 
-interface tokenRecipient { function receiveApproval(address _from, uint256 _value, address _token, bytes _extraData) external; }
 
-
-contract ONEX is ERC20,PoSTokenStandard,Ownable {
+contract ONEX is ERC223, PoSTokenStandard {
     using SafeMath for uint256;
 
     string public name = "ONEX Network";
     string public symbol = "ONEX";
-    uint public decimals = 18;
+    uint8 public decimals = 18;
 
     uint public chainStartTime; //chain start time
     uint public chainStartBlockNumber; //chain start block number
@@ -137,18 +89,7 @@ contract ONEX is ERC20,PoSTokenStandard,Ownable {
     }
 
     mapping(address => uint256) balances;
-    mapping(address => mapping (address => uint256)) allowed;
     mapping(address => transferInStruct[]) transferIns;
-
-    event Burn(address indexed burner, uint256 value);
-
-    /**
-     * @dev Fix for the ERC20 short address attack.
-     */
-    modifier onlyPayloadSize(uint size) {
-        require(msg.data.length >= size + 4);
-        _;
-    }
 
     modifier canPoSMint() {
         require(totalSupply < maxTotalSupply);
@@ -156,125 +97,84 @@ contract ONEX is ERC20,PoSTokenStandard,Ownable {
     }
 
 
-    constructor() public {
+    function ONEX() public {
         maxTotalSupply = 10**25; // 10 Mil.
         totalInitialSupply = 10**24; // 1 Mil.
 
         chainStartTime = now;
+        stakeStartTime = now + 5 days;
         chainStartBlockNumber = block.number;
 
         balances[msg.sender] = totalInitialSupply;
         totalSupply = totalInitialSupply;
     }
 
-
-    function transfer(address _to, uint256 _value) public onlyPayloadSize(2 * 32) returns (bool) {
-        if(msg.sender == _to) return mint();
-
-        require(_to != address(0));
-        require(_value <= balances[msg.sender]);
-
-        balances[msg.sender] = balances[msg.sender].sub(_value);
-        balances[_to] = balances[_to].add(_value);
-        emit Transfer(msg.sender, _to, _value);
-
-        if(transferIns[msg.sender].length > 0) delete transferIns[msg.sender];
-        uint64 _now = uint64(now);
-        transferIns[msg.sender].push(transferInStruct(uint128(balances[msg.sender]),_now));
-        transferIns[_to].push(transferInStruct(uint128(_value),_now));
-        return true;
-    }
-
-
-    function balanceOf(address _owner) public view returns (uint256 balance) {
-        return balances[_owner];
-    }
-
-
-    function transferFrom(address _from, address _to, uint256 _value) public onlyPayloadSize(3 * 32) returns (bool) {
-        require(_to != address(0));
-        require(_value <= balances[_from]);
-        require(_value <= allowed[_from][msg.sender]);
-
-        balances[_from] = balances[_from].sub(_value);
-        balances[_to] = balances[_to].add(_value);
-        allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
-        emit Transfer(_from, _to, _value);
-
-        if(transferIns[_from].length > 0) delete transferIns[_from];
-        uint64 _now = uint64(now);
-        transferIns[_from].push(transferInStruct(uint128(balances[_from]),_now));
-        transferIns[_to].push(transferInStruct(uint128(_value),_now));
-        return true;
-    }
-
-
-    function approve(address _spender, uint256 _value) public returns (bool) {
-        require((_value == 0) || (allowed[msg.sender][_spender] == 0));
-        allowed[msg.sender][_spender] = _value;
-        emit Approval(msg.sender, _spender, _value);
-        return true;
-    }
-
-
-    /**
-     * Set allowance for other address and notify
-     *
-     * Allows `_spender` to spend no more than `_value` tokens in your behalf, and then ping the contract about it
-     *
-     * @param _spender The address authorized to spend
-     * @param _value the max amount they can spend
-     * @param _extraData some extra information to send to the approved contract
-     */
-    function approveAndCall(address _spender, uint256 _value, bytes _extraData)  public returns (bool success) {
-        tokenRecipient spender = tokenRecipient(_spender);
-        if (approve(_spender, _value)) {
-            spender.receiveApproval(msg.sender, _value, this, _extraData);
-            return true;
+    //assemble the given address bytecode. If bytecode exists then the _addr is a contract.
+    function isContract(address _addr) private returns (bool is_contract) {
+        uint length;
+        assembly {
+            //retrieve the size of the code on target address, this needs assembly
+            length := extcodesize(_addr)
         }
+        return (length > 0);
     }
 
-    /**
-     * @dev Increase the amount of tokens that an owner allowed to a spender.
-     * approve should be called when allowed[_spender] == 0. To increment
-     * allowed value is better to use this function to avoid 2 calls (and wait until
-     * the first transaction is mined)
-     * From MonolithDAO Token.sol
-     * @param _spender The address which will spend the funds.
-     * @param _addedValue The amount of tokens to increase the allowance by.
-     */
-    function increaseApproval(address _spender, uint256 _addedValue) public returns (bool) {
-        allowed[msg.sender][_spender] = (
-        allowed[msg.sender][_spender].add(_addedValue));
-        emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
-        return true;
-    }
-
-    /**
-     * @dev Decrease the amount of tokens that an owner allowed to a spender.
-     * approve should be called when allowed[_spender] == 0. To decrement
-     * allowed value is better to use this function to avoid 2 calls (and wait until
-     * the first transaction is mined)
-     * From MonolithDAO Token.sol
-     * @param _spender The address which will spend the funds.
-     * @param _subtractedValue The amount of tokens to decrease the allowance by.
-     */
-    function decreaseApproval(address _spender, uint256 _subtractedValue) public returns (bool) {
-        uint256 oldValue = allowed[msg.sender][_spender];
-        if (_subtractedValue > oldValue) {
-            allowed[msg.sender][_spender] = 0;
+    // Function that is called when a user or another contract wants to transfer funds .
+    function transfer(address _to, uint _value, bytes _data) returns (bool success) {
+        if(isContract(_to)) {
+          return transferToContract(_to, _value, _data);
         } else {
-            allowed[msg.sender][_spender] = oldValue.sub(_subtractedValue);
+          return transferToAddress(_to, _value, _data);
         }
-        emit Approval(msg.sender, _spender, allowed[msg.sender][_spender]);
-        return true;
     }
 
-
-    function allowance(address _owner, address _spender) public view returns (uint256 remaining) {
-        return allowed[_owner][_spender];
+    // Standard function transfer similar to ERC20 transfer with no _data .
+    // Added due to backwards compatibility reasons .
+    function transfer(address _to, uint _value) returns (bool success) {
+        //standard function transfer similar to ERC20 transfer with no _data
+        //added due to backwards compatibility reasons
+        bytes memory empty;
+        if(isContract(_to)) {
+            return transferToContract(_to, _value, empty);
+        } else {
+            return transferToAddress(_to, _value, empty);
+        }
     }
 
+    function transferToAddress(address _to, uint _value, bytes _data) private returns (bool success) {
+      if(msg.sender == _to) return mint();
+      if(balanceOf(msg.sender) < _value) revert();
+      balances[msg.sender] = balanceOf(msg.sender).sub(_value);
+      balances[_to] = balanceOf(_to).add(_value);
+
+      if(transferIns[msg.sender].length > 0) delete transferIns[msg.sender];
+      uint64 _now = uint64(now);
+      transferIns[msg.sender].push(transferInStruct(uint128(balances[msg.sender]),_now));
+      transferIns[_to].push(transferInStruct(uint128(_value),_now));
+
+      Transfer(msg.sender, _to, _value);
+      ERC223Transfer(msg.sender, _to, _value, _data);
+      return true;
+    }
+
+    //function that is called when transaction target is a contract
+    function transferToContract(address _to, uint _value, bytes _data) private returns (bool success) {
+      if(msg.sender == _to) return mint();
+      if (balanceOf(msg.sender) < _value) revert();
+      balances[msg.sender] = balanceOf(msg.sender).sub(_value);
+      balances[_to] = balanceOf(_to).add(_value);
+      ContractReceiver reciever = ContractReceiver(_to);
+      reciever.tokenFallback(msg.sender, _value, _data);
+
+      if(transferIns[msg.sender].length > 0) delete transferIns[msg.sender];
+      uint64 _now = uint64(now);
+      transferIns[msg.sender].push(transferInStruct(uint128(balances[msg.sender]),_now));
+      transferIns[_to].push(transferInStruct(uint128(_value),_now));
+
+      Transfer(msg.sender, _to, _value);
+      ERC223Transfer(msg.sender, _to, _value, _data);
+      return true;
+    }
 
     function mint() public canPoSMint returns (bool) {
         if(balances[msg.sender] <= 0) return false;
@@ -288,7 +188,7 @@ contract ONEX is ERC20,PoSTokenStandard,Ownable {
         delete transferIns[msg.sender];
         transferIns[msg.sender].push(transferInStruct(uint128(balances[msg.sender]),uint64(now)));
 
-        emit Mint(msg.sender, reward);
+        Mint(msg.sender, reward);
         return true;
     }
 
@@ -298,8 +198,8 @@ contract ONEX is ERC20,PoSTokenStandard,Ownable {
     }
 
 
-    function coinAge() public view returns (uint myCoinAge) {
-        myCoinAge = getCoinAge(msg.sender,now);
+    function coinAge(address staker) public view returns (uint256) {
+        return getCoinAge(staker, now);
     }
 
 
@@ -332,7 +232,9 @@ contract ONEX is ERC20,PoSTokenStandard,Ownable {
             interest = (435 * maxMintProofOfStake).div(100);
         }
 
-        return (_coinAge * interest).div(365 * (10**decimals));
+        uint offset = 10**uint(decimals);
+
+        return (_coinAge * interest).div(365 * offset);
     }
 
 
@@ -349,48 +251,24 @@ contract ONEX is ERC20,PoSTokenStandard,Ownable {
         }
     }
 
-
-    function ownerSetStakeStartTime(uint timestamp) public onlyOwner {
-        require((stakeStartTime <= 0) && (timestamp >= chainStartTime));
-        stakeStartTime = timestamp;
+    function balanceOf(address _owner) constant returns (uint balance) {
+      return balances[_owner];
     }
 
-
-    function ownerBurnToken(uint _value) public onlyOwner {
-        require(_value > 0);
-
-        balances[msg.sender] = balances[msg.sender].sub(_value);
-        delete transferIns[msg.sender];
-        transferIns[msg.sender].push(transferInStruct(uint128(balances[msg.sender]),uint64(now)));
-
-        totalSupply = totalSupply.sub(_value);
-        totalInitialSupply = totalInitialSupply.sub(_value);
-        maxTotalSupply = maxTotalSupply.sub(_value*10);
-
-        emit Burn(msg.sender, _value);
+    // Function to access name of token .
+    function name() constant returns (string _name) {
+        return name;
     }
-
-    /* Batch token transfer. Used by contract creator to distribute initial tokens to holders */
-    function batchTransfer(address[] _recipients, uint[] _values) public onlyOwner returns (bool) {
-        require( _recipients.length > 0 && _recipients.length == _values.length);
-
-        uint total = 0;
-        for(uint i = 0; i < _values.length; i++){
-            total = total.add(_values[i]);
-        }
-        require(total <= balances[msg.sender]);
-
-        uint64 _now = uint64(now);
-        for(uint j = 0; j < _recipients.length; j++){
-            balances[_recipients[j]] = balances[_recipients[j]].add(_values[j]);
-            transferIns[_recipients[j]].push(transferInStruct(uint128(_values[j]),_now));
-            emit Transfer(msg.sender, _recipients[j], _values[j]);
-        }
-
-        balances[msg.sender] = balances[msg.sender].sub(total);
-        if(transferIns[msg.sender].length > 0) delete transferIns[msg.sender];
-        if(balances[msg.sender] > 0) transferIns[msg.sender].push(transferInStruct(uint128(balances[msg.sender]),_now));
-
-        return true;
+    // Function to access symbol of token .
+    function symbol() constant returns (string _symbol) {
+        return symbol;
+    }
+    // Function to access decimals of token .
+    function decimals() constant returns (uint8 _decimals) {
+        return decimals;
+    }
+    // Function to access total supply of tokens .
+    function totalSupply() constant returns (uint256 _totalSupply) {
+        return totalSupply;
     }
 }
