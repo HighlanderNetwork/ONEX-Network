@@ -8,7 +8,7 @@ Proof-of-Stake Token on Ethereum Classic Network. This is an alternative method 
 * **Name**: ONEX Network
 * **Symbol**: ONEX
 * **Decimals**: 18
-* **Standard**: ERC20 & PoSTokenStandard
+* **Standard**: ERC223 & PoSTokenStandard
 * **Platform**: Ethereum Classic
 * **Maximum Total Supply**: 10,000,000 ONEX
 * **Initial Supply**: 1,000,000 ONEX
