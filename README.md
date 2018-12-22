@@ -2,7 +2,7 @@
 ONEX is a Proof-of-Stake Token on the Ethereum Classic Network.
 
 ## What is ONEX
-Proof-of-Stake Token on Ethereum Classic Network. This is an alternative method to the more widely known process used by bitcoin; Proof of Work (POW). It's based on the ERC20 Token Standard and implements all standard methods. ONEX is the first to implement the Proof-of-Stake mechanism on Ethereum Classic, meaning that holders of ONEX can earn some extra tokens just by holding ONEX for a period of time, greater than or equal to The Minimum Coin Age.
+Proof-of-Stake Token on Ethereum Classic Network. This is an alternative method to the more widely known process used by bitcoin; Proof of Work (POW). While keeping tokens holders protection in mind, ONEX utilizes ERC223 token standard. ONEX is the first to implement the Proof-of-Stake mechanism on Ethereum Classic, meaning that holders of ONEX can earn some extra tokens just by holding ONEX for a period of time, greater than or equal to The Minimum Coin Age.
 
 ## Specifications of ONEX Network
 * **Name**: ONEX Network
@@ -21,4 +21,4 @@ Proof-of-Stake Token on Ethereum Classic Network. This is an alternative method 
   + 3rd - 15th Year Interest: 10%
 
 ## Resource
-**[Website](https://onex.network)** | **[Twitter](https://twitter/HighlanderToken)** | **[Telegram](https://t.me/highlandertoken)**
+**[Website](https://onex.network)** | **[Twitter](https://twitter.com/onexnet)** | **[Telegram](https://t.me/highlandertoken)**
