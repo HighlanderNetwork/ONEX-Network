@@ -21,4 +21,4 @@ Proof-of-Stake Token on Ethereum Classic Network. This is an alternative method 
   + 3rd - 15th Year Interest: 10%
 
 ## Resource
-**[Website](https://onex.network)** | **[Twitter](https://twitter.com/onexnet)** | **[Telegram](https://t.me/highlandertoken)**
+**[Website](https://onex.network)** | **[Twitter](https://twitter.com/onexnet)** | **[Telegram](https://t.me/onexnet)**
